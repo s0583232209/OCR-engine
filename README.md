@@ -1,116 +1,184 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
-
 # LeetCode OCR Engine & Technical Interviewer
 
-Uploads a photo of handwritten code, runs OCR locally via **EasyOCR** (Python), and displays word-level bounding boxes alongside a transcription and evaluation panel.
+A full-stack app that lets a user upload a photo of handwritten code, runs OCR locally with EasyOCR, overlays word-level bounding boxes on the image, and presents a simple technical interview evaluation layer.
+
+This project is designed for local development and experimentation. It combines a Node/Express backend with a React frontend and a Python OCR service.
+
+## Features
+
+- Upload handwritten or printed code images
+- Extract text with EasyOCR
+- Show OCR word bounding boxes over the original image
+- Build a cleaned transcription from recognized tokens
+- Provide a basic interview/evaluation summary for the extracted solution
+- Works locally without requiring a cloud OCR API
+
+## Tech Stack
+
+- Frontend: React + TypeScript + Vite
+- Backend: Node.js + Express
+- OCR engine: Python + EasyOCR
+- Image processing: Pillow (via EasyOCR dependencies)
+
+## Project Structure
+
+```text
+.
+├── python/
+│   ├── easyocr_service.py
+│   └── requirements.txt
+├── src/
+│   ├── App.tsx
+│   ├── index.css
+│   ├── main.tsx
+│   └── samples.ts
+├── .env.example
+├── .gitignore
+├── index.html
+├── metadata.json
+├── package.json
+├── package-lock.json
+├── server.ts
+├── tsconfig.json
+├── vite.config.ts
+├── README.md
+└── .env               # local file, not committed
+```
 
 ## Prerequisites
 
-- **Node.js** 18+
-- **Python** 3.9+ with `pip`
+- Node.js 18+
+- Python 3.9+
+- npm
+- Git
 
----
+## Local Setup
 
-## Setup
-
-### 1. Install Node dependencies
+### 1) Install frontend dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Set up the Python OCR environment
+### 2) Create a Python virtual environment
 
-Create and activate a virtual environment (recommended):
+Windows:
 
 ```bash
-# Windows
 python -m venv .venv
 .venv\Scripts\activate
+```
 
-# macOS / Linux
+macOS / Linux:
+
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Install EasyOCR and its dependencies:
+### 3) Install Python OCR dependencies
 
 ```bash
 pip install -r python/requirements.txt
 ```
 
-> **First run note:** EasyOCR downloads its recognition models (~100 MB) on the first call and caches them in `~/.EasyOCR/`. Subsequent runs are fast.
+> EasyOCR downloads recognition models on first use. This may take a bit on the initial run.
 
-> **GPU acceleration:** `requirements.txt` installs the CPU-only PyTorch build. If you have a CUDA GPU, replace the `torch`/`torchvision` lines with the matching CUDA wheels from [pytorch.org](https://pytorch.org/get-started/locally/) and set `gpu=True` in `python/easyocr_service.py`.
+### 4) Configure environment variables
 
-### 3. Configure environment variables
+Copy the example file to a local `.env` file:
 
-Copy `.env.example` to `.env` and fill in the values:
+Windows:
 
 ```bash
-cp .env.example .env   # macOS / Linux
-copy .env.example .env # Windows
+copy .env.example .env
 ```
 
-If your Python binary is not simply `python` (e.g. you're using a venv or `python3`), set `EASYOCR_PYTHON` in `.env`:
+macOS / Linux:
 
-```
-EASYOCR_PYTHON="C:\path\to\.venv\Scripts\python.exe"  # Windows venv
-EASYOCR_PYTHON="/path/to/.venv/bin/python"             # macOS / Linux venv
+```bash
+cp .env.example .env
 ```
 
-### 4. Run the app
+Then edit `.env` and set the values you need. Keep real secrets local and never commit `.env`.
+
+Example:
+
+```env
+GEMINI_API_KEY="PASTE_YOUR_GEMINI_API_KEY_HERE"
+APP_URL="http://localhost:3000"
+EASYOCR_PYTHON="python"
+```
+
+If your Python executable is not on PATH, set `EASYOCR_PYTHON` to the full path of your virtual environment Python binary.
+
+Examples:
+
+```env
+EASYOCR_PYTHON="C:\\path\\to\\.venv\\Scripts\\python.exe"
+EASYOCR_PYTHON="/path/to/.venv/bin/python"
+```
+
+## Run the app
 
 ```bash
 npm run dev
 ```
 
-The server starts at **http://localhost:3000** (or `$PORT` if set).
+Then open:
 
----
-
-## How it works
-
-| Step | What happens |
-|------|-------------|
-| Upload | User drops or selects an image in the browser |
-| Transfer | Frontend sends the image as a base64 data URL to `POST /api/analyze` |
-| OCR | `server.ts` writes a temp file and calls `python/easyocr_service.py` via `child_process.execFile` |
-| Parse | The Python script runs EasyOCR, normalises bounding boxes to a 0–1000 grid, and returns `{"words": [...]}` as JSON on stdout |
-| Display | The frontend overlays word bounding boxes on the image and shows the transcription |
-
----
-
-## Project structure
-
-```
-├── python/
-│   ├── easyocr_service.py   # EasyOCR runner — called by server.ts
-│   └── requirements.txt     # Python dependencies
-├── src/
-│   ├── App.tsx              # React frontend
-│   ├── samples.ts           # Preloaded demo samples
-│   └── ...
-├── server.ts                # Express server + OCR bridge
-├── .env.example             # Environment variable reference
-└── package.json
+```text
+http://localhost:3000
 ```
 
----
+## How It Works
+
+1. The frontend sends the uploaded image to the backend API.
+2. The Node server writes the image to a temp file.
+3. The server executes the Python OCR script.
+4. EasyOCR recognizes the text and returns per-word bounding boxes.
+5. The app normalizes coordinates and overlays the recognized tokens on the image.
+6. The transcription is sent back to the UI for display and evaluation.
+
+## Important Security Note
+
+This project should never commit real API keys or secrets.
+
+- Keep real credentials in a local `.env` file
+- Add `.env` to your local ignore rules
+- Do not commit API keys to GitHub
+- Rotate any secret that was ever pushed before
+
+The repository includes a safe example file at [.env.example](.env.example), which should only contain placeholders.
 
 ## Troubleshooting
 
-**`python: command not found` / `'python' is not recognized`**
-Set `EASYOCR_PYTHON` in your `.env` file to the full path of your Python binary.
+### `python: command not found` or `'python' is not recognized`
 
-**`ModuleNotFoundError: No module named 'easyocr'`**
-Make sure you activated the correct virtual environment before running `npm run dev`, or set `EASYOCR_PYTHON` to point to the venv's Python executable.
+Set `EASYOCR_PYTHON` in `.env` to the path of the correct Python executable.
 
-**OCR times out on first run**
-EasyOCR downloads model weights on the first invocation. The server allows up to 120 seconds — this is usually enough, but on a slow connection you may need to pre-warm by running the script directly once:
+### `ModuleNotFoundError: No module named 'easyocr'`
+
+Activate the correct virtual environment and install requirements again:
 
 ```bash
-python python/easyocr_service.py path/to/any/image.png
+pip install -r python/requirements.txt
 ```
+
+### OCR runs slowly the first time
+
+EasyOCR downloads its model weights on first use. Subsequent calls are faster.
+
+### `npm run dev` hangs or prompts to terminate the process
+
+That is usually just the dev server still running in the terminal. Press `y` or use Ctrl+C to stop it.
+
+## Notes
+
+- The app is intended for educational and prototyping use.
+- The evaluation layer is a lightweight heuristic summary, not a production-grade LeetCode judge.
+- OCR quality depends heavily on image clarity, handwriting quality, scanning conditions, and lighting.
+
+## License
+
+This project does not currently declare a license. If you intend to publish it publicly, add an appropriate open-source license before distribution.
