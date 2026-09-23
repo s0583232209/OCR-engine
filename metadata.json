@@ -1,0 +1,6 @@
+{
+  "name": "LeetCode OCR Engine & Technical Interviewer",
+  "description": "Optical character recognition (OCR) with word-level bounding box overlay, clean code transcription, and senior developer grading & feedback for handwritten LeetCode submissions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

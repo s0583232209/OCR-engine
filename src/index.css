@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+/* Engineering / Notebook Lined Paper */
+.lined-paper {
+  background-color: #fafafa;
+  background-image: linear-gradient(#e5e7eb 1px, transparent 1px);
+  background-size: 100% 2rem;
+  background-position: 0 1rem;
+}
+
+/* Custom Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Custom handwriting and serif integrations */
+.font-handwriting {
+  font-family: 'Caveat', cursive;
+}
+
+.font-editorial {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* Subtle pulse for overlay words */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.95; }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
+
