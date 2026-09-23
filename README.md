@@ -1,26 +1,57 @@
 # LeetCode OCR Engine & Technical Interviewer
 
-A full-stack app that lets a user upload a photo of handwritten code, runs OCR locally with EasyOCR, overlays word-level bounding boxes on the image, and presents a simple technical interview evaluation layer.
+This project is a local web app that takes a photo of handwritten or printed code, runs OCR on it, and turns the result into a readable transcription with visual word boxes over the image. It is designed to simulate an interview workflow where a student submission is extracted, inspected, and graded in a lightweight way.
 
-This project is designed for local development and experimentation. It combines a Node/Express backend with a React frontend and a Python OCR service.
+The core idea is simple: a user uploads an image of code, the backend sends it to a Python EasyOCR engine, and the frontend displays both the original image and the recognized text with bounding boxes. The app then summarizes the detected code in a mock technical-interview format.
 
-## Features
+## What the app does
 
-- Upload handwritten or printed code images
-- Extract text with EasyOCR
-- Show OCR word bounding boxes over the original image
-- Build a cleaned transcription from recognized tokens
-- Provide a basic interview/evaluation summary for the extracted solution
-- Works locally without requiring a cloud OCR API
+When a user opens the app:
 
-## Tech Stack
+1. They upload or choose a code image.
+2. The frontend sends that image to the backend API.
+3. The Node server converts the image data into a temporary file.
+4. The Python script calls EasyOCR to detect text in the image.
+5. The OCR engine returns recognized words and their bounding boxes.
+6. The backend normalizes those coordinates into a 0–1000 grid.
+7. The frontend renders the image with boxes around each recognized word.
+8. The extracted words are joined into a readable code transcription.
+9. A simplified evaluation panel is generated based on the extracted text.
+
+In practical terms, the app is not a full LeetCode judge. It is an OCR + review prototype that helps visualize how handwritten code could be converted into text and then evaluated for readability, structure, and general interview feedback.
+
+## Example behavior
+
+The app includes sample code problems such as:
+
+- Reverse Linked List
+- Valid Parentheses
+
+For each sample, the app shows:
+
+- the handwritten code image
+- the OCR-detected word boxes
+- the cleaned transcription
+- an evaluation summary with readability and interview-style comments
+
+## Main features
+
+- Upload code photos from the browser
+- Process the image locally with EasyOCR
+- Display OCR word-level overlays on the image
+- Combine OCR tokens into continuous code text
+- Show an interview-style evaluation summary
+- Include preloaded demonstration samples for quick testing
+- Run locally without external cloud OCR services
+
+## Tech stack
 
 - Frontend: React + TypeScript + Vite
 - Backend: Node.js + Express
-- OCR engine: Python + EasyOCR
-- Image processing: Pillow (via EasyOCR dependencies)
+- OCR: Python + EasyOCR
+- Coordinate handling: normalized 0–1000 box layout
 
-## Project Structure
+## Project structure
 
 ```text
 .
@@ -45,22 +76,38 @@ This project is designed for local development and experimentation. It combines 
 └── .env               # local file, not committed
 ```
 
-## Prerequisites
+## How the OCR pipeline works
+
+The actual flow is:
+
+```text
+Upload image
+  -> Express receives base64 image
+  -> write temp file in OS temp directory
+  -> run python/easyocr_service.py with that image path
+  -> EasyOCR returns words + bounding boxes
+  -> server parses JSON and sends result to frontend
+  -> UI draws boxes and builds transcription
+```
+
+This means the app is specifically built around OCR of handwritten code snippets and previewing how the recognized text is being interpreted.
+
+## Setup
+
+### Prerequisites
 
 - Node.js 18+
 - Python 3.9+
 - npm
 - Git
 
-## Local Setup
-
-### 1) Install frontend dependencies
+### 1) Install Node dependencies
 
 ```bash
 npm install
 ```
 
-### 2) Create a Python virtual environment
+### 2) Create and activate a Python environment
 
 Windows:
 
@@ -76,31 +123,25 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3) Install Python OCR dependencies
+### 3) Install Python dependencies
 
 ```bash
 pip install -r python/requirements.txt
 ```
 
-> EasyOCR downloads recognition models on first use. This may take a bit on the initial run.
-
-### 4) Configure environment variables
-
-Copy the example file to a local `.env` file:
-
-Windows:
+### 4) Create a local `.env` file
 
 ```bash
 copy .env.example .env
 ```
 
-macOS / Linux:
+or:
 
 ```bash
 cp .env.example .env
 ```
 
-Then edit `.env` and set the values you need. Keep real secrets local and never commit `.env`.
+Then edit `.env` with your local values. Keep real secrets in this file and do not commit it.
 
 Example:
 
@@ -110,14 +151,7 @@ APP_URL="http://localhost:3000"
 EASYOCR_PYTHON="python"
 ```
 
-If your Python executable is not on PATH, set `EASYOCR_PYTHON` to the full path of your virtual environment Python binary.
-
-Examples:
-
-```env
-EASYOCR_PYTHON="C:\\path\\to\\.venv\\Scripts\\python.exe"
-EASYOCR_PYTHON="/path/to/.venv/bin/python"
-```
+If your Python binary is not on PATH, set `EASYOCR_PYTHON` to the full path to your environment's Python executable.
 
 ## Run the app
 
@@ -131,54 +165,52 @@ Then open:
 http://localhost:3000
 ```
 
-## How It Works
+## What to expect in the UI
 
-1. The frontend sends the uploaded image to the backend API.
-2. The Node server writes the image to a temp file.
-3. The server executes the Python OCR script.
-4. EasyOCR recognizes the text and returns per-word bounding boxes.
-5. The app normalizes coordinates and overlays the recognized tokens on the image.
-6. The transcription is sent back to the UI for display and evaluation.
+After uploading an image, you should see:
 
-## Important Security Note
+- the uploaded code photo
+- word-level rectangles drawn around recognized text
+- the extracted transcription in a readable format
+- a summary panel with feedback about the solution
 
-This project should never commit real API keys or secrets.
+The UI is intentionally built to help users inspect OCR quality and understand how the system interprets handwriting or printed code.
 
-- Keep real credentials in a local `.env` file
-- Add `.env` to your local ignore rules
-- Do not commit API keys to GitHub
-- Rotate any secret that was ever pushed before
+## Security note
 
-The repository includes a safe example file at [.env.example](.env.example), which should only contain placeholders.
+This project should not commit real API keys or credentials.
+
+- real values go in `.env`
+- `.env.example` should remain a placeholder template
+- never push secrets to GitHub
+- if a secret was previously committed, rotate it immediately
 
 ## Troubleshooting
 
-### `python: command not found` or `'python' is not recognized`
+### The app cannot find Python
 
-Set `EASYOCR_PYTHON` in `.env` to the path of the correct Python executable.
+Set `EASYOCR_PYTHON` in `.env` to the full correct path to Python.
 
-### `ModuleNotFoundError: No module named 'easyocr'`
-
-Activate the correct virtual environment and install requirements again:
+### EasyOCR is missing
 
 ```bash
 pip install -r python/requirements.txt
 ```
 
-### OCR runs slowly the first time
+### OCR is slow on the first run
 
-EasyOCR downloads its model weights on first use. Subsequent calls are faster.
+EasyOCR downloads model weights the first time it runs. This is expected and usually only happens once.
 
-### `npm run dev` hangs or prompts to terminate the process
+### The dev command keeps prompting to terminate
 
-That is usually just the dev server still running in the terminal. Press `y` or use Ctrl+C to stop it.
+That is just the server process still running. Press `y` or Ctrl+C to stop it.
 
-## Notes
+## Limitations
 
-- The app is intended for educational and prototyping use.
-- The evaluation layer is a lightweight heuristic summary, not a production-grade LeetCode judge.
-- OCR quality depends heavily on image clarity, handwriting quality, scanning conditions, and lighting.
+- The OCR quality depends on image clarity and handwriting quality.
+- The evaluation is a lightweight heuristic and not a real LeetCode automated judge.
+- This is best used as a local prototype or educational demo, not a production grading system.
 
 ## License
 
-This project does not currently declare a license. If you intend to publish it publicly, add an appropriate open-source license before distribution.
+This project does not currently include a license file. If you plan to publish it publicly, add an open-source license before distributing the repository.
