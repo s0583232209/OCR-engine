@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { 
-  Upload, FileText, CheckCircle, TrendingUp, Maximize2, 
+  Upload, FileText, CheckCircle, TrendingUp, Maximize2, Download, Printer,
   Eye, EyeOff, Grid, ExternalLink, Copy, Sparkles, 
   Code, Award, Terminal, User, Mail, RefreshCw, X, AlertCircle, Check
 } from "lucide-react";
@@ -29,6 +29,8 @@ export default function App() {
   // Copy states
   const [copiedTranscribed, setCopiedTranscribed] = useState<boolean>(false);
   const [copiedOptimized, setCopiedOptimized] = useState<boolean>(false);
+  const [reviewStatus, setReviewStatus] = useState<"Needs review" | "Reviewed" | "Needs revision" | "Strong solution">("Needs review");
+  const [teacherNotes, setTeacherNotes] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isPdfUpload = customFilename.toLowerCase().endsWith(".pdf") || (customImage?.startsWith("data:application/pdf") ?? false);
@@ -50,6 +52,33 @@ export default function App() {
       setCopiedOptimized(true);
       setTimeout(() => setCopiedOptimized(false), 2000);
     }
+  };
+
+  const downloadReport = () => {
+    if (!currentResult) return;
+    const report = [
+      "LeetCode OCR Teacher Review",
+      `Submission: ${currentResult.email}`,
+      `Problem: ${currentResult.evaluation.problemName}`,
+      `Status: ${reviewStatus}`,
+      `Score: ${currentResult.evaluation.totalGrade}/100`,
+      "",
+      "Teacher notes:",
+      teacherNotes || "No notes added.",
+      "",
+      "Transcription:",
+      currentResult.transcription,
+    ].join("\n");
+    const url = URL.createObjectURL(new Blob([report], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${currentResult.evaluation.problemName.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-review.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const printReport = () => {
+    window.print();
   };
 
   // Handle custom image uploads
@@ -647,6 +676,53 @@ export default function App() {
                       {currentResult.evaluation.readabilityScore}<span className="text-slate-300 text-xs font-normal">/20</span>
                     </p>
                   </div>
+                </div>
+
+                {/* Teacher review workspace */}
+                <div className="px-5 py-4 border-b border-slate-100 bg-amber-50/40">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                      Review status
+                      <select
+                        value={reviewStatus}
+                        onChange={(event) => setReviewStatus(event.target.value as typeof reviewStatus)}
+                        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-amber-400"
+                      >
+                        <option>Needs review</option>
+                        <option>Reviewed</option>
+                        <option>Needs revision</option>
+                        <option>Strong solution</option>
+                      </select>
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={printReport}
+                        title="Print this teacher review"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        Print
+                      </button>
+                      <button
+                        type="button"
+                        onClick={downloadReport}
+                        title="Download this teacher review"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Export
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    value={teacherNotes}
+                    onChange={(event) => setTeacherNotes(event.target.value)}
+                    placeholder="Add private teacher feedback for this submission..."
+                    aria-label="Teacher notes"
+                    rows={2}
+                    className="mt-3 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none placeholder:text-slate-400 focus:border-amber-400"
+                  />
                 </div>
 
                 {/* Panel Sub-Tabs Navigation */}
