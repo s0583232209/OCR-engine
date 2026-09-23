@@ -1,157 +1,186 @@
 # LeetCode OCR Engine & Technical Interviewer
 
-This project is a local web app that takes a photo of handwritten or printed code, runs OCR on it, and turns the result into a readable transcription with visual word boxes over the image. It is designed to simulate an interview workflow where a student submission is extracted, inspected, and graded in a lightweight way.
+A local web application for turning handwritten or printed code into a visual OCR review. Upload a PNG/JPG image or a PDF, run EasyOCR locally, inspect word-level bounding boxes, and view the extracted code in an interview-style evaluation panel.
 
-The core idea is simple: a user uploads an image of code, the backend sends it to a Python EasyOCR engine, and the frontend displays both the original image and the recognized text with bounding boxes. The app then summarizes the detected code in a mock technical-interview format.
+This is an OCR and review prototype, not a full LeetCode compiler or automated judge.
+
+## Features
+
+- Upload PNG, JPG, and PDF code submissions.
+- Run OCR locally with Python EasyOCR.
+- Draw normalized bounding boxes around recognized words.
+- Display the recognized word directly above each box.
+- Render PDF pages into images so boxes align with the visible source page.
+- Navigate between pages in multi-page PDFs.
+- View the extracted transcription and lightweight review feedback.
+- Use included sample submissions without uploading a file.
+- Keep uploaded files and OCR processing local to the running machine.
+
+## Visual Overview
+
+The application has a React interface, an Express bridge, and a Python OCR service:
+
+```mermaid
+flowchart LR
+    A[Browser upload<br/>PNG JPG or PDF] --> B[React frontend]
+    B -->|base64 data URL| C[Express /api/analyze]
+    C --> D[Temporary file]
+    D --> E[Python EasyOCR service]
+    E --> F{Input type}
+    F -->|Image| G[EasyOCR word boxes]
+    F -->|PDF| H[pypdfium2 renders pages]
+    H --> G
+    G --> I[Normalized 0-1000 coordinates]
+    I --> B
+    B --> J[Source preview with boxes and labels]
+    B --> K[Transcription and evaluation]
+```
+
+For PDFs, the page image and its OCR boxes are returned together. This keeps the overlay coordinate system attached to the exact visible page:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as React UI
+    participant API as Express API
+    participant OCR as EasyOCR Python service
+
+    User->>UI: Select PDF
+    User->>UI: Run OCR
+    UI->>API: Send PDF as base64
+    API->>OCR: Save temporary PDF and execute service
+    OCR->>OCR: Render each page with pypdfium2
+    OCR->>OCR: Detect words and normalize boxes
+    OCR-->>API: Page PNG + page-specific words
+    API-->>UI: Pages, boxes, transcription
+    UI->>User: Show page with aligned boxes and labels
+```
 
 ## What the app does
 
-When a user opens the app:
+1. The browser reads an uploaded image or PDF as a base64 data URL.
+2. Express writes the upload to a temporary file.
+3. `python/easyocr_service.py` runs EasyOCR on the file.
+4. PDF pages are rendered to PNG using `pypdfium2` before OCR.
+5. Each OCR box is converted to normalized `[ymin, xmin, ymax, xmax]` coordinates on a 0–1000 grid.
+6. The API returns recognized words, transcription text, and rendered PDF page previews.
+7. React draws the boxes over the exact source image and places the recognized word above each box.
+8. The review panel shows the transcription and lightweight interview feedback.
 
-1. They upload or choose a code image.
-2. The frontend sends that image to the backend API.
-3. The Node server converts the image data into a temporary file.
-4. The Python script calls EasyOCR to detect text in the image.
-5. The OCR engine returns recognized words and their bounding boxes.
-6. The backend normalizes those coordinates into a 0–1000 grid.
-7. The frontend renders the image with boxes around each recognized word.
-8. The extracted words are joined into a readable code transcription.
-9. A simplified evaluation panel is generated based on the extracted text.
+## Screenshots and visual documentation
 
-In practical terms, the app is not a full LeetCode judge. It is an OCR + review prototype that helps visualize how handwritten code could be converted into text and then evaluated for readability, structure, and general interview feedback.
+The most useful project screenshot is the analyzed submission view: the handwritten page in the center, blue bounding boxes around detected words, and the recognized labels above the boxes. For a polished GitHub page, capture these views from `http://localhost:3000` and save them under `docs/screenshots/`:
 
-## Example behavior
+```text
+docs/screenshots/
+├── image-analysis.png       # PNG/JPG with OCR boxes
+├── pdf-analysis.png         # PDF page with aligned OCR boxes
+└── multipage-pdf.png        # PDF page navigation
+```
 
-The app includes sample code problems such as:
+Then add them to this section with standard Markdown:
+
+```markdown
+![PDF analysis with aligned OCR boxes](docs/screenshots/pdf-analysis.png)
+```
+
+The Mermaid diagrams above are included so the repository still has useful visual documentation even before screenshots are added.
+
+## Included examples
+
+The app includes preloaded examples such as:
 
 - Reverse Linked List
 - Valid Parentheses
 
-For each sample, the app shows:
+Each example demonstrates the source view, OCR boxes, transcription, and evaluation panel.
 
-- the handwritten code image
-- the OCR-detected word boxes
-- the cleaned transcription
-- an evaluation summary with readability and interview-style comments
+## Technology
 
-## Main features
-
-- Upload code photos from the browser
-- Process the image locally with EasyOCR
-- Display OCR word-level overlays on the image
-- Combine OCR tokens into continuous code text
-- Show an interview-style evaluation summary
-- Include preloaded demonstration samples for quick testing
-- Run locally without external cloud OCR services
-
-## Tech stack
-
-- Frontend: React + TypeScript + Vite
-- Backend: Node.js + Express
-- OCR: Python + EasyOCR
-- Coordinate handling: normalized 0–1000 box layout
+- React 19, TypeScript, and Vite
+- Node.js and Express
+- Python EasyOCR 1.7.2
+- Pillow for image dimensions
+- pypdfium2 4.30.0 for PDF page rendering
+- PyTorch 2.9.0 and torchvision 0.24.0
+- Tailwind CSS and Lucide icons
 
 ## Project structure
 
 ```text
 .
 ├── python/
-│   ├── easyocr_service.py
-│   └── requirements.txt
+│   ├── easyocr_service.py  # Image/PDF rendering and EasyOCR entrypoint
+│   └── requirements.txt    # Python OCR dependencies
 ├── src/
-│   ├── App.tsx
-│   ├── index.css
-│   ├── main.tsx
-│   └── samples.ts
-├── .env.example
-├── .gitignore
-├── index.html
-├── metadata.json
-├── package.json
-├── package-lock.json
-├── server.ts
+│   ├── App.tsx             # Upload UI, preview canvas, overlays, evaluation
+│   ├── index.css           # Application styles
+│   ├── main.tsx            # React entrypoint
+│   └── samples.ts          # Included examples and OCR data
+├── .env.example            # Safe local configuration template
+├── package.json             # Node scripts and dependencies
+├── server.ts               # Express API and Python process bridge
 ├── tsconfig.json
 ├── vite.config.ts
-├── README.md
-└── .env               # local file, not committed
+└── README.md
 ```
-
-## How the OCR pipeline works
-
-The actual flow is:
-
-```text
-Upload image
-  -> Express receives base64 image
-  -> write temp file in OS temp directory
-  -> run python/easyocr_service.py with that image path
-  -> EasyOCR returns words + bounding boxes
-  -> server parses JSON and sends result to frontend
-  -> UI draws boxes and builds transcription
-```
-
-This means the app is specifically built around OCR of handwritten code snippets and previewing how the recognized text is being interpreted.
 
 ## Setup
 
 ### Prerequisites
 
-- Node.js 18+
-- Python 3.9+
+- Node.js 18 or newer
+- Python 3.9 or newer
 - npm
 - Git
 
-### 1) Install Node dependencies
+### Install Node dependencies
 
 ```bash
 npm install
 ```
 
-### 2) Create and activate a Python environment
+### Install Python dependencies
 
-Windows:
+Using a virtual environment is recommended:
 
-```bash
+Windows PowerShell:
+
+```powershell
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\Activate.ps1
+python -m pip install -r python\requirements.txt
 ```
 
-macOS / Linux:
+macOS/Linux:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install -r python/requirements.txt
 ```
 
-### 3) Install Python dependencies
+### Configure Python
 
-```bash
-pip install -r python/requirements.txt
+Copy the local configuration template:
+
+```powershell
+Copy-Item .env.example .env
 ```
 
-### 4) Create a local `.env` file
-
-```bash
-copy .env.example .env
-```
-
-or:
-
-```bash
-cp .env.example .env
-```
-
-Then edit `.env` with your local values. Keep real secrets in this file and do not commit it.
-
-Example:
+Set `EASYOCR_PYTHON` to the Python interpreter that has EasyOCR installed. For example:
 
 ```env
-GEMINI_API_KEY="PASTE_YOUR_GEMINI_API_KEY_HERE"
-APP_URL="http://localhost:3000"
+EASYOCR_PYTHON="C:\path\to\python.exe"
+```
+
+On systems where `python` is already on PATH, use:
+
+```env
 EASYOCR_PYTHON="python"
 ```
 
-If your Python binary is not on PATH, set `EASYOCR_PYTHON` to the full path to your environment's Python executable.
+Do not commit `.env`. The repository template must contain placeholders only.
 
 ## Run the app
 
@@ -159,58 +188,85 @@ If your Python binary is not on PATH, set `EASYOCR_PYTHON` to the full path to y
 npm run dev
 ```
 
-Then open:
+Open [http://localhost:3000](http://localhost:3000), upload a code image or PDF, and select **Run OCR & Technical Interview**.
 
-```text
-http://localhost:3000
+Useful validation commands:
+
+```bash
+npm run build
+npm run lint
 ```
 
-## What to expect in the UI
+## API behavior
 
-After uploading an image, you should see:
+`POST /api/analyze` accepts JSON containing an image or PDF data URL. The response includes:
 
-- the uploaded code photo
-- word-level rectangles drawn around recognized text
-- the extracted transcription in a readable format
-- a summary panel with feedback about the solution
+```json
+{
+  "words": [{ "text": "return", "box": [480, 310, 515, 395] }],
+  "pages": [{
+    "image": "data:image/png;base64,...",
+    "words": [{ "text": "return", "box": [480, 310, 515, 395] }]
+  }],
+  "transcription": "return prev",
+  "evaluation": {}
+}
+```
 
-The UI is intentionally built to help users inspect OCR quality and understand how the system interprets handwriting or printed code.
-
-## Security note
-
-This project should not commit real API keys or credentials.
-
-- real values go in `.env`
-- `.env.example` should remain a placeholder template
-- never push secrets to GitHub
-- if a secret was previously committed, rotate it immediately
+`pages` is populated for PDFs and is used by the UI to keep every page's boxes aligned. Image uploads use the original image as the preview.
 
 ## Troubleshooting
 
-### The app cannot find Python
+### `spawn python ENOENT`
 
-Set `EASYOCR_PYTHON` in `.env` to the full correct path to Python.
+Node cannot find the Python executable. Set `EASYOCR_PYTHON` in `.env` to the full path of the interpreter where EasyOCR was installed.
 
-### EasyOCR is missing
+### `EasyOCR is not installed`
+
+Install the Python dependencies with:
 
 ```bash
-pip install -r python/requirements.txt
+python -m pip install -r python/requirements.txt
+```
+
+### `pypdfium2 is not installed`
+
+Install the same requirements file. PDFs need `pypdfium2` to render pages before OCR.
+
+### `EADDRINUSE: address already in use :::3000`
+
+Another process is using port 3000. Stop the old development server or run the app on another port:
+
+PowerShell:
+
+```powershell
+$env:PORT=3001
+npm run dev
 ```
 
 ### OCR is slow on the first run
 
-EasyOCR downloads model weights the first time it runs. This is expected and usually only happens once.
+EasyOCR downloads its model weights the first time it starts. Later runs use the cached model. CPU processing is slower than GPU processing.
 
-### The dev command keeps prompting to terminate
+### Boxes are inaccurate
 
-That is just the server process still running. Press `y` or Ctrl+C to stop it.
+Use a clear, well-lit image or a high-resolution scan. The system detects text; it does not correct handwriting or infer missing characters. For PDFs, always analyze the upload so the UI can display the rendered page image used by OCR.
+
+## Security
+
+- Keep real credentials in `.env` only.
+- Never commit API keys or tokens.
+- Keep `.env.example` sanitized.
+- Rotate a credential immediately if it was ever committed or exposed.
+- Uploaded files are written to the operating system temporary directory and removed after OCR processing.
 
 ## Limitations
 
-- The OCR quality depends on image clarity and handwriting quality.
-- The evaluation is a lightweight heuristic and not a real LeetCode automated judge.
-- This is best used as a local prototype or educational demo, not a production grading system.
+- OCR quality depends on handwriting, contrast, resolution, and page layout.
+- The current evaluation is a lightweight review heuristic, not code execution.
+- PDF pages are rendered for OCR and visual alignment; selectable PDF text is not preserved as source text.
+- The project is intended as a local educational prototype, not a production grading service.
 
 ## License
 
-This project does not currently include a license file. If you plan to publish it publicly, add an open-source license before distributing the repository.
+This project does not currently include a license file. Add an open-source license before distributing it publicly.
