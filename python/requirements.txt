@@ -4,8 +4,13 @@ easyocr==1.7.2
 # Pillow is used to read image dimensions for bounding-box normalisation
 Pillow==11.3.0
 
+# PDF rendering for uploaded PDF files
+pypdfium2==4.30.0
+
 # PyTorch CPU build — required by EasyOCR.
+# These exact versions are compatible with the Windows Python 3.14 environment
+# used by this project and with the installed EasyOCR stack.
 # If you have a CUDA-capable GPU, replace these with the matching CUDA wheels:
 #   https://pytorch.org/get-started/locally/
-torch==2.7.1
-torchvision==0.22.1
+torch==2.9.0
+torchvision==0.24.0

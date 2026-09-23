@@ -11,6 +11,7 @@ export default function App() {
   const [customImage, setCustomImage] = useState<string | null>(null);
   const [customFilename, setCustomFilename] = useState<string>("");
   const [customResult, setCustomResult] = useState<any | null>(null);
+  const [selectedPdfPage, setSelectedPdfPage] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [apiError, setApiError] = useState<string | null>(null);
   
@@ -29,6 +30,7 @@ export default function App() {
   const [copiedOptimized, setCopiedOptimized] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isPdfUpload = customFilename.toLowerCase().endsWith(".pdf") || (customImage?.startsWith("data:application/pdf") ?? false);
 
   // Reset states when changing tabs
   useEffect(() => {
@@ -52,12 +54,13 @@ export default function App() {
   // Handle custom image uploads
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (file && (file.type.startsWith("image/") || file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"))) {
       const reader = new FileReader();
       reader.onload = (event) => {
         setCustomImage(event.target?.result as string);
         setCustomFilename(file.name);
         setCustomResult(null);
+        setSelectedPdfPage(0);
         setApiError(null);
         setActiveTab("custom");
       };
@@ -76,12 +79,13 @@ export default function App() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) {
+    if (file && (file.type.startsWith("image/") || file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"))) {
       const reader = new FileReader();
       reader.onload = (event) => {
         setCustomImage(event.target?.result as string);
         setCustomFilename(file.name);
         setCustomResult(null);
+        setSelectedPdfPage(0);
         setApiError(null);
         setActiveTab("custom");
       };
@@ -112,6 +116,7 @@ export default function App() {
       }
 
       setCustomResult(data);
+      setSelectedPdfPage(0);
     } catch (err: any) {
       console.error(err);
       setApiError(err.message || "Failed to contact the server or model.");
@@ -122,6 +127,10 @@ export default function App() {
 
   // Active dataset resolver
   const isPreloaded = activeTab.startsWith("sample-");
+  const pdfPages = customResult?.pages ?? [];
+  const activePdfPage = pdfPages[selectedPdfPage] ?? pdfPages[0];
+  const visibleCustomImage = activePdfPage?.image ?? customImage;
+  const visibleCustomWords: OCRWord[] = activePdfPage?.words ?? customResult?.words ?? [];
   const currentSample = isPreloaded 
     ? PRELOADED_SAMPLES.find(s => s.id === activeTab) 
     : null;
@@ -164,7 +173,7 @@ export default function App() {
               type="file" 
               ref={fileInputRef} 
               onChange={handleImageUpload} 
-              accept="image/*" 
+              accept="image/*,.pdf,application/pdf" 
               className="hidden" 
             />
             <button
@@ -405,58 +414,91 @@ export default function App() {
                   )}
 
                   {/* Image Display & BBox Canvas */}
-                  <div className="relative w-full max-w-xl max-h-[550px] overflow-hidden rounded-xl border border-slate-200 bg-slate-900 flex items-center justify-center">
-                    <img 
-                      src={customImage} 
-                      alt="Uploaded handwritten submission" 
-                      className="max-w-full max-h-[550px] object-contain select-none"
-                    />
+                  <div className="relative w-full max-w-[1200px] max-h-[75vh] overflow-auto rounded-xl border border-slate-200 bg-slate-900 flex items-center justify-center p-2">
+                    <div className="relative inline-block max-w-full">
+                      {isPdfUpload && !activePdfPage ? (
+                        <embed
+                          src={customImage ?? undefined}
+                          type="application/pdf"
+                          className="block w-full min-h-[72vh] max-w-[1100px] rounded-lg shadow-lg bg-white"
+                          title="Uploaded PDF submission"
+                        />
+                      ) : (
+                        <img 
+                          src={visibleCustomImage ?? undefined} 
+                          alt="Uploaded handwritten submission" 
+                          className={`block object-contain select-none ${isPdfUpload ? "max-w-[1100px] max-h-[72vh] rounded-lg shadow-lg" : "max-w-full max-h-[550px]"}`}
+                        />
+                      )}
 
-                    {/* OCR Bounding Boxes on top of image */}
-                    {customResult && showOverlays && (
-                      <div className="absolute inset-0 w-full h-full pointer-events-auto">
-                        {customResult.words.map((w: OCRWord, idx: number) => {
-                          const [ymin, xmin, ymax, xmax] = w.box;
-                          const top = `${ymin / 10}%`;
-                          const left = `${xmin / 10}%`;
-                          const height = `${(ymax - ymin) / 10}%`;
-                          const width = `${(xmax - xmin) / 10}%`;
-                          const isHovered = hoveredIndex === idx;
+                      {/* OCR Bounding Boxes on top of image */}
+                      {customResult && showOverlays && (
+                        <div className="absolute inset-0 pointer-events-auto">
+                          {visibleCustomWords.map((w: OCRWord, idx: number) => {
+                            const [ymin, xmin, ymax, xmax] = w.box;
+                            const top = `${ymin / 10}%`;
+                            const left = `${xmin / 10}%`;
+                            const height = `${(ymax - ymin) / 10}%`;
+                            const width = `${(xmax - xmin) / 10}%`;
+                            const isHovered = hoveredIndex === idx;
 
-                          return (
-                            <div
-                              key={idx}
-                              onMouseEnter={() => {
-                                setHoveredWord(w);
-                                setHoveredIndex(idx);
-                              }}
-                              onMouseLeave={() => {
-                                setHoveredWord(null);
-                                setHoveredIndex(null);
-                              }}
-                              className={`absolute border rounded cursor-pointer transition-all duration-150 ${
-                                isHovered 
-                                  ? "bg-emerald-500/20 border-emerald-400 z-30 scale-105 shadow-md" 
-                                  : "bg-blue-500/5 border-blue-500/20 hover:border-blue-400 hover:bg-blue-500/10"
-                              }`}
-                              style={{ top, left, width, height }}
-                            >
-                              {/* Overlay Word annotation */}
-                              {showAnnotations && (isHovered || showAnnotations) && (
-                                <div className={`absolute -top-6 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[10px] font-mono leading-none tracking-tight shadow-sm border border-slate-200 pointer-events-none ${
+                            return (
+                              <div
+                                key={idx}
+                                onMouseEnter={() => {
+                                  setHoveredWord(w);
+                                  setHoveredIndex(idx);
+                                }}
+                                onMouseLeave={() => {
+                                  setHoveredWord(null);
+                                  setHoveredIndex(null);
+                                }}
+                                className={`absolute border rounded cursor-pointer transition-all duration-150 ${
                                   isHovered 
-                                    ? "bg-slate-900 text-white border-slate-900 z-40 scale-110" 
-                                    : "bg-white text-slate-700"
-                                }`}>
-                                  {w.text}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                                    ? "bg-emerald-500/20 border-emerald-400 z-30 scale-105 shadow-md" 
+                                    : "bg-blue-500/5 border-blue-500/20 hover:border-blue-400 hover:bg-blue-500/10"
+                                }`}
+                                style={{ top, left, width, height }}
+                              >
+                                {/* Overlay Word annotation */}
+                                {showAnnotations && (isHovered || showAnnotations) && (
+                                  <div className={`absolute -top-6 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[10px] font-mono leading-none tracking-tight shadow-sm border border-slate-200 pointer-events-none ${
+                                    isHovered 
+                                      ? "bg-slate-900 text-white border-slate-900 z-40 scale-110" 
+                                      : "bg-white text-slate-700"
+                                  }`}>
+                                    {w.text}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  {pdfPages.length > 1 && (
+                    <div className="flex items-center gap-3 text-xs text-slate-600">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPdfPage((page) => Math.max(0, page - 1))}
+                        disabled={selectedPdfPage === 0}
+                        className="px-3 py-1.5 border border-slate-200 rounded-lg bg-white disabled:opacity-40"
+                      >
+                        Previous page
+                      </button>
+                      <span>Page {selectedPdfPage + 1} of {pdfPages.length}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPdfPage((page) => Math.min(pdfPages.length - 1, page + 1))}
+                        disabled={selectedPdfPage === pdfPages.length - 1}
+                        className="px-3 py-1.5 border border-slate-200 rounded-lg bg-white disabled:opacity-40"
+                      >
+                        Next page
+                      </button>
+                    </div>
+                  )}
 
                   {customResult && (
                     <div className="text-center">

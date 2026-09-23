@@ -19,26 +19,42 @@ interface EasyOcrWord {
   box: [number, number, number, number];
 }
 
+interface EasyOcrPage {
+  image: string;
+  words: EasyOcrWord[];
+}
+
 // Timeout for the EasyOCR Python process (ms). First run is slower due to
 // model download; subsequent runs use the cached model (~5-10 s on CPU).
 const OCR_TIMEOUT_MS = 120_000;
 
-async function runEasyOcr(image: string): Promise<EasyOcrWord[]> {
-  const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+async function runEasyOcr(image: string): Promise<{ words: EasyOcrWord[]; pages: EasyOcrPage[] }> {
+  const mimeMatch = image.match(/^data:([^;]+);base64,/);
+  if (!mimeMatch) {
+    throw new Error('Invalid upload format: expected a data URL with base64 content.');
+  }
+
+  const mimeType = mimeMatch[1] || 'image/png';
+  const base64Data = image.replace(/^data:.*;base64,/, '');
   if (!base64Data) throw new Error('Invalid image data: missing base64 payload');
 
-  const extension = image.match(/^data:image\/(\w+);base64,/)?.[1] || 'png';
+  const extension = mimeType.split('/').pop() || 'png';
   const imagePath = path.join(os.tmpdir(), `leetcode-ocr-${Date.now()}.${extension}`);
   const pythonScript = path.resolve(__dirname, 'python', 'easyocr_service.py');
-  const pythonCommand = process.env.EASYOCR_PYTHON || 'python';
+  const pythonCommand = process.env.EASYOCR_PYTHON || (process.platform === 'win32' ? 'py' : 'python3');
+  const pythonArgs = process.env.EASYOCR_PYTHON
+    ? [pythonScript, imagePath]
+    : process.platform === 'win32'
+      ? ['-3', pythonScript, imagePath]
+      : [pythonScript, imagePath];
 
   try {
     await fs.promises.writeFile(imagePath, Buffer.from(base64Data, 'base64'));
 
     const { stdout, stderr } = await execFileAsync(
       pythonCommand,
-      [pythonScript, imagePath],
-      { maxBuffer: 10 * 1024 * 1024, timeout: OCR_TIMEOUT_MS }
+      pythonArgs,
+      { maxBuffer: 100 * 1024 * 1024, timeout: OCR_TIMEOUT_MS }
     );
 
     if (stderr) {
@@ -60,7 +76,10 @@ async function runEasyOcr(image: string): Promise<EasyOcrWord[]> {
       throw new Error('EasyOCR response missing "words" array');
     }
 
-    return parsed.words as EasyOcrWord[];
+    return {
+      words: parsed.words as EasyOcrWord[],
+      pages: Array.isArray(parsed.pages) ? parsed.pages as EasyOcrPage[] : [],
+    };
   } finally {
     await fs.promises.rm(imagePath, { force: true });
   }
@@ -90,9 +109,10 @@ function buildEvaluation(transcription: string) {
 async function startServer() {
   const app = express();
   
-  // Set larger limit for image base64 uploads
-  app.use(express.json({ limit: '15mb' }));
-  app.use(express.urlencoded({ limit: '15mb', extended: true }));
+  // Set larger limits for PDF/image base64 uploads.
+  // PDFs can be much larger than 15 MB when uploaded as base64.
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // API Endpoint for analysis
   app.post('/api/analyze', async (req, res) => {
@@ -102,9 +122,9 @@ async function startServer() {
         return res.status(400).json({ error: 'No image provided' });
       }
 
-      const words = await runEasyOcr(image);
+      const { words, pages } = await runEasyOcr(image);
       const transcription = words.map((word) => word.text).join(' ');
-      res.json({ words, transcription, evaluation: buildEvaluation(transcription) });
+      res.json({ words, pages, transcription, evaluation: buildEvaluation(transcription) });
 
     } catch (error: any) {
       console.error("EasyOCR Error in /api/analyze:", error);
