@@ -13,6 +13,7 @@ This is an OCR and review prototype, not a full LeetCode compiler or automated j
 - Render PDF pages into images so boxes align with the visible source page.
 - Navigate between pages in multi-page PDFs.
 - View the extracted transcription and lightweight review feedback.
+- Match common LeetCode problems from detected function names or an optional problem URL/number/title.
 - Use included sample submissions without uploading a file.
 - Keep uploaded files and OCR processing local to the running machine.
 
@@ -65,7 +66,7 @@ sequenceDiagram
 5. Each OCR box is converted to normalized `[ymin, xmin, ymax, xmax]` coordinates on a 0–1000 grid.
 6. The API returns recognized words, transcription text, and rendered PDF page previews.
 7. React draws the boxes over the exact source image and places the recognized word above each box.
-8. The review panel shows the transcription and lightweight interview feedback.
+8. The review panel matches supported LeetCode problems and shows the transcription with lightweight interview feedback.
 
 ## Screenshots and visual documentation
 
@@ -190,6 +191,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000), upload a code image or PDF, and select **Run OCR & Technical Interview**.
 
+For a custom question, use the optional field above the run button. Paste the LeetCode problem URL, number, or title, for example `https://leetcode.com/problems/two-sum/` or `1`. This gives the evaluator an exact problem target when the code alone is not enough to identify it.
+
 Useful validation commands:
 
 ```bash
@@ -248,6 +251,10 @@ npm run dev
 
 EasyOCR downloads its model weights the first time it starts. Later runs use the cached model. CPU processing is slower than GPU processing.
 
+### The grade is unexpectedly low
+
+The evaluator recognizes a supported set of common LeetCode problems from function names, algorithm markers, or the optional problem hint. For a new or ambiguous problem, paste its LeetCode URL or number before running OCR. The current evaluator is a static OCR-based review; it does not execute the submitted code against LeetCode test cases, so its score is an estimate rather than proof of correctness.
+
 ### Boxes are inaccurate
 
 Use a clear, well-lit image or a high-resolution scan. The system detects text; it does not correct handwriting or infer missing characters. For PDFs, always analyze the upload so the UI can display the rendered page image used by OCR.
@@ -263,7 +270,7 @@ Use a clear, well-lit image or a high-resolution scan. The system detects text; 
 ## Limitations
 
 - OCR quality depends on handwriting, contrast, resolution, and page layout.
-- The current evaluation is a lightweight review heuristic, not code execution.
+- The current evaluation matches common problem signatures and estimates correctness; it does not execute code against LeetCode test cases.
 - PDF pages are rendered for OCR and visual alignment; selectable PDF text is not preserved as source text.
 - The project is intended as a local educational prototype, not a production grading service.
 

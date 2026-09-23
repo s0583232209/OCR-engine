@@ -11,6 +11,7 @@ export default function App() {
   const [customImage, setCustomImage] = useState<string | null>(null);
   const [customFilename, setCustomFilename] = useState<string>("");
   const [customResult, setCustomResult] = useState<any | null>(null);
+  const [problemHint, setProblemHint] = useState("");
   const [selectedPdfPage, setSelectedPdfPage] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -60,6 +61,7 @@ export default function App() {
         setCustomImage(event.target?.result as string);
         setCustomFilename(file.name);
         setCustomResult(null);
+        setProblemHint("");
         setSelectedPdfPage(0);
         setApiError(null);
         setActiveTab("custom");
@@ -85,6 +87,7 @@ export default function App() {
         setCustomImage(event.target?.result as string);
         setCustomFilename(file.name);
         setCustomResult(null);
+        setProblemHint("");
         setSelectedPdfPage(0);
         setApiError(null);
         setActiveTab("custom");
@@ -106,7 +109,8 @@ export default function App() {
         },
         body: JSON.stringify({
           image: customImage,
-          filename: customFilename
+          filename: customFilename,
+          problemHint,
         })
       });
 
@@ -376,6 +380,14 @@ export default function App() {
                           Run the OCR word mapping engine and technical interview evaluator on your submission.
                         </p>
                       </div>
+                      <input
+                        type="text"
+                        value={problemHint}
+                        onChange={(event) => setProblemHint(event.target.value)}
+                        placeholder="Optional LeetCode URL, number, or title"
+                        aria-label="Optional LeetCode problem hint"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-blue-400"
+                      />
                       <button
                         onClick={analyzeImage}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-950 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold shadow-sm transition"
